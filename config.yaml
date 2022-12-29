@@ -1,0 +1,6 @@
+token: "YOUR_BOT_TOKEN_HERE"
+appid: "XXXXXXXXXXXXXXXXXX" # application id of bot
+guild: "XXXXXXXXXXXXXXXXXX" # guild id
+channel: "XXXXXXXXXXXXXXXXXX" # channel (or thread) id
+container: "container_name" # container name or id
+max_tail: 10000 # number of log lines to allow
