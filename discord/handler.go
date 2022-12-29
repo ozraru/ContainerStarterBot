@@ -1,7 +1,6 @@
 package discord
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/bwmarrin/discordgo"
@@ -140,7 +139,7 @@ func getStatus(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	respond(s, i.Interaction, fmt.Sprintf("```\n%s```", data))
+	respond(s, i.Interaction, data)
 }
 
 func ack(s *discordgo.Session, i *discordgo.Interaction) {

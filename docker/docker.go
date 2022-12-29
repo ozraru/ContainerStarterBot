@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -41,19 +42,28 @@ func ContainerStatus() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	res := fmt.Sprintf("Status: %s\n", data.State.Status)
+	res := fmt.Sprintf("Status: `%s`\n", data.State.Status)
 	if data.State.Dead {
-		res += fmt.Sprintf("Exit code: %d\n", data.State.ExitCode)
+		res += fmt.Sprintf("Exit code: `%d`\n", data.State.ExitCode)
 	}
 	if data.State.Running {
-		res += fmt.Sprintf("Started at: %s\n", data.State.StartedAt)
+		res += fmt.Sprintf("Started at: %s\n", convertTime(data.State.StartedAt))
 	} else {
-		res += fmt.Sprintf("Finished at: %s\n", data.State.FinishedAt)
+		res += fmt.Sprintf("Finished at: %s\n", convertTime(data.State.FinishedAt))
 	}
 	if data.State.Error != "" {
-		res += fmt.Sprintf("Error: %s\n", data.State.Error)
+		res += fmt.Sprintf("Error: `%s`\n", data.State.Error)
 	}
 	return res, nil
+}
+
+func convertTime(before string) string {
+	t, err := time.Parse(time.RFC3339Nano, before)
+	if err != nil {
+		log.Print("Failed to parse time: ", err)
+		return before
+	}
+	return fmt.Sprintf("<t:%d:T>", t.Unix())
 }
 
 func GetLog(timestamps bool, tail int64) (io.ReadCloser, error) {
