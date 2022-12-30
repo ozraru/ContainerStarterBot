@@ -43,12 +43,10 @@ func ContainerStatus() (string, error) {
 		return "", err
 	}
 	res := fmt.Sprintf("Status: `%s`\n", data.State.Status)
-	if data.State.Dead {
-		res += fmt.Sprintf("Exit code: `%d`\n", data.State.ExitCode)
-	}
 	if data.State.Running {
 		res += fmt.Sprintf("Started at: %s\n", convertTime(data.State.StartedAt))
 	} else {
+		res += fmt.Sprintf("Exit code: `%d`\n", data.State.ExitCode)
 		res += fmt.Sprintf("Finished at: %s\n", convertTime(data.State.FinishedAt))
 	}
 	if data.State.Error != "" {
