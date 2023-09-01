@@ -8,12 +8,14 @@ import (
 )
 
 type ConfigStruct struct {
-	Token     string `yaml:"token"`
-	AppId     string `yaml:"appid"`
-	Guild     string `yaml:"guild"`
-	Channel   string `yaml:"channel"`
-	Container string `yaml:"container"`
-	MaxTail   int64  `yaml:"max_tail"`
+	Token      string `yaml:"token"`
+	AppId      string `yaml:"appid"`
+	Guild      string `yaml:"guild"`
+	Channel    string `yaml:"channel"`
+	Container  string `yaml:"container"`
+	MaxTail    int64  `yaml:"max_tail"`
+	Timeout    int    `yaml:"timeout"`
+	EnableStop bool   `yaml:"enable_stop"`
 }
 
 var Config ConfigStruct

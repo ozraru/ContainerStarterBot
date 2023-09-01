@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/ozraru/ContainerStarterBot/config"
 )
@@ -17,6 +18,7 @@ import (
 var apicli client.APIClient
 
 var ErrAlreadyStarted = errors.New("container already started")
+var ErrAlreadyStopped = errors.New("container already stopped")
 
 func init() {
 	var err error
@@ -35,6 +37,19 @@ func StartContainer() error {
 		return ErrAlreadyStarted
 	}
 	return apicli.ContainerStart(context.Background(), config.Config.Container, types.ContainerStartOptions{})
+}
+
+func StopContainer() error {
+	res, err := apicli.ContainerInspect(context.Background(), config.Config.Container)
+	if err != nil {
+		return err
+	}
+	if !res.State.Running {
+		return ErrAlreadyStopped
+	}
+	return apicli.ContainerStop(context.Background(), config.Config.Container, container.StopOptions{
+		Timeout: &config.Config.Timeout,
+	})
 }
 
 func ContainerStatus() (string, error) {
