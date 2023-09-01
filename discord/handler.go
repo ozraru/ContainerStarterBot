@@ -45,6 +45,13 @@ func RegisterCommand() {
 		Name:        "status",
 		Description: "Check status of container related to this channel",
 	})
+	if config.Config.EnableStop {
+		addCommand(&discordgo.ApplicationCommand{
+			GuildID:     config.Config.Guild,
+			Name:        "stop",
+			Description: "Stop container related to this channel",
+		})
+	}
 }
 
 func addCommand(command *discordgo.ApplicationCommand) {
@@ -69,6 +76,8 @@ func SlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			getLog(s, i)
 		case "status":
 			getStatus(s, i)
+		case "stop":
+			stop(s, i)
 		default:
 			log.Print("Unexpected command: ", i.ApplicationCommandData().Name)
 		}
@@ -140,6 +149,24 @@ func getStatus(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	respond(s, i.Interaction, data)
+}
+
+func stop(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	ack(s, i.Interaction)
+
+	if !config.Config.EnableStop {
+		respond(s, i.Interaction, "Stop command is disabled for this container")
+		return
+	}
+
+	err := docker.StopContainer()
+
+	if err != nil {
+		respond(s, i.Interaction, "Failed to stop container: "+err.Error())
+		return
+	}
+
+	respond(s, i.Interaction, "Container stop successful")
 }
 
 func ack(s *discordgo.Session, i *discordgo.Interaction) {

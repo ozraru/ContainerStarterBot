@@ -4,3 +4,5 @@ guild: "XXXXXXXXXXXXXXXXXX" # guild id
 channel: "XXXXXXXXXXXXXXXXXX" # channel (or thread) id
 container: "container_name" # container name or id
 max_tail: 10000 # number of log lines to allow
+timeout: 10 # container stop timeout (seconds)
+enable_stop: true # enable stop command
