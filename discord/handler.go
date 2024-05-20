@@ -24,7 +24,7 @@ func RegisterCommand() {
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        optionShutdownTimerOverride,
-				Description: "Override shutdown timer of this container. Possible suffixes: h, m, s. If the timer is set to off by the config file, this enables and set timer for this activation. Put \"off\" to disable timer for this activation.",
+				Description: "Override shutdown timer. Suffixes: h, m, s. Put \"off\" to disable timer for this activation.",
 				Required:    false,
 			},
 		},
