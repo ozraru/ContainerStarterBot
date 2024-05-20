@@ -36,11 +36,12 @@ func LoadConfig() {
 	if err != nil {
 		log.Fatal("Failed to unmarshal config: ", err)
 	}
-	if Config.DefaultAutoStopDurationRaw != "off" {
-		Config.DefaultAutoStopDuration, err = time.ParseDuration(Config.DefaultAutoStopDurationRaw)
-		if err != nil {
-			log.Fatal("Failed to parse duration of auto_stop_duration: ", err)
+	if Config.EnableAutoStop {
+		if Config.DefaultAutoStopDurationRaw != "off" {
+			Config.DefaultAutoStopDuration, err = time.ParseDuration(Config.DefaultAutoStopDurationRaw)
+			if err != nil {
+				log.Fatal("Failed to parse duration of auto_stop_duration: ", err)
+			}
 		}
 	}
-
 }
