@@ -2,6 +2,7 @@ package discord
 
 import (
 	"log"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/ozraru/ContainerStarterBot/config"
@@ -12,12 +13,21 @@ var zero float64 = 0
 
 var optionTimestamps = "timestamps"
 var optionTail = "tail"
+var optionShutdownTimerOverride = "TimerOverride"
 
 func RegisterCommand() {
 	addCommand(&discordgo.ApplicationCommand{
 		GuildID:     config.Config.Guild,
 		Name:        "start",
 		Description: "Start container related to this channel",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        optionShutdownTimerOverride,
+				Description: "Override shutdown timer of this container. Possible suffixes: h, m, s. If the timer is set to off by the config file, this enables and set timer for this activation. Put \"off\" to disable timer for this activation.",
+				Required:    false,
+			},
+		},
 	})
 	addCommand(&discordgo.ApplicationCommand{
 		GuildID:     config.Config.Guild,
@@ -88,15 +98,56 @@ func SlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 func start(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	ack(s, i.Interaction)
-
+	data := i.ApplicationCommandData()
 	err := docker.StartContainer()
-
+	shutdownTimer := ""
 	if err != nil {
 		respond(s, i.Interaction, "Failed to start container: "+err.Error())
 		return
 	}
-
+	if data.Options != nil || config.Config.EnableAutoShutdown {
+		for _, v := range data.Options {
+			switch v.Name {
+			case optionShutdownTimerOverride:
+				shutdownTimer = v.StringValue()
+			default:
+				respond(s, i.Interaction, "Unknown options specified")
+				return
+			}
+		}
+		go setShutdownTimer(s, shutdownTimer)
+	}
 	respond(s, i.Interaction, "Container start successful")
+}
+
+func setShutdownTimer(s *discordgo.Session, shutdownTimer string) {
+	if shutdownTimer == "" {
+		shutdownTimer = config.Config.AutoShutdownDuration
+	}
+	if shutdownTimer == "off" {
+		sendMessage(s, "Timer disabled by override")
+		return
+	}
+	timerDuration, err := time.ParseDuration(shutdownTimer)
+	if err != nil {
+		sendMessage(s, "**Timer is not set; timer duration was invalid, check the config file**")
+		return
+	}
+	go autoShutdown(s, timerDuration)
+	sendMessage(s, "Shutdown timer set: "+shutdownTimer)
+
+}
+
+func autoShutdown(s *discordgo.Session, duration time.Duration) {
+	time.Sleep(duration)
+	err := docker.StopContainer()
+
+	if err != nil {
+		sendMessage(s, "Failed to stop container: "+err.Error())
+		return
+	}
+
+	sendMessage(s, "Container stop successful")
 }
 
 func getLog(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -184,5 +235,12 @@ func respond(s *discordgo.Session, i *discordgo.Interaction, msg string) {
 	})
 	if err != nil {
 		log.Print("Failed to interaction respond: ", err)
+	}
+}
+
+func sendMessage(s *discordgo.Session, msg string) {
+	_, err := s.ChannelMessageSend(config.Config.Channel, msg)
+	if err != nil {
+		log.Print("Failed to send message: ", err)
 	}
 }

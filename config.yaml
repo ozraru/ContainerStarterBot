@@ -6,3 +6,5 @@ container: "container_name" # container name or id
 max_tail: 10000 # number of log lines to allow
 timeout: 10 # container stop timeout (seconds)
 enable_stop: true # enable stop command
+enable_auto-shutdown: false # enable shutdown timer for automatic stop
+auto-shutdown_duration: "24h" # shutdown timer duration; possible suffixes are "h", "m", "s"
