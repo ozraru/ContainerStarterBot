@@ -1,6 +1,7 @@
 package discord
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -112,7 +113,7 @@ func start(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	if config.Config.EnableAutoShutdown && config.Config.DefaultAutoShutdownDuration != 0 {
 		go autoShutdown(s, config.Config.DefaultAutoShutdownDuration)
-		respond(s, i.Interaction, "Container start successful\nShutdown timer set: ")
+		respond(s, i.Interaction, fmt.Sprintf("Container start successful\nShutdown timer set: <t:%v:R>", time.Now().Add(config.Config.DefaultAutoShutdownDuration).Unix()))
 	} else {
 		respond(s, i.Interaction, "Container start successful")
 	}
@@ -157,7 +158,7 @@ func startoverride(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		respond(s, i.Interaction, "Timer disabled by override\nContainer start successful")
 	} else {
 		go autoShutdown(s, timerDuration)
-		respond(s, i.Interaction, "Container start successful\nShutdown timer set: ")
+		respond(s, i.Interaction, fmt.Sprintf("Container start successful\nShutdown timer set: <t:%v:R>", time.Now().Add(timerDuration).Unix()))
 	}
 }
 
