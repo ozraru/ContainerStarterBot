@@ -14,7 +14,7 @@ var zero float64 = 0
 
 var optionTimestamps = "timestamps"
 var optionTail = "tail"
-var optionShutdownTimerOverride = "timerduration"
+var optionStopTimerOverride = "timerduration"
 
 func RegisterCommand() {
 	addCommand(&discordgo.ApplicationCommand{
@@ -25,12 +25,12 @@ func RegisterCommand() {
 	addCommand(&discordgo.ApplicationCommand{
 		GuildID:     config.Config.Guild,
 		Name:        "startoverride",
-		Description: "Start container related to this channel, overrides shutdown timer",
+		Description: "Start container related to this channel, overrides stop timer",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        optionShutdownTimerOverride,
-				Description: "Shutdown timer duration. Suffixes: h, m, s. Put \"off\" to disable timer for this activation.",
+				Name:        optionStopTimerOverride,
+				Description: "Stop timer duration. Suffixes: h, m, s. Put \"off\" to disable timer for this activation.",
 				Required:    true,
 			},
 		},
@@ -111,9 +111,9 @@ func start(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		respond(s, i.Interaction, "Failed to start container: "+err.Error())
 		return
 	}
-	if config.Config.EnableAutoShutdown && config.Config.DefaultAutoShutdownDuration != 0 {
-		go autoShutdown(s, config.Config.DefaultAutoShutdownDuration)
-		respond(s, i.Interaction, fmt.Sprintf("Container start successful\nShutdown timer set: <t:%v:R>", time.Now().Add(config.Config.DefaultAutoShutdownDuration).Unix()))
+	if config.Config.EnableAutoStop && config.Config.DefaultAutoStopDuration != 0 {
+		go autoStop(s, config.Config.DefaultAutoStopDuration)
+		respond(s, i.Interaction, fmt.Sprintf("Container start successful\nStop timer set: <t:%v:R>", time.Now().Add(config.Config.DefaultAutoStopDuration).Unix()))
 	} else {
 		respond(s, i.Interaction, "Container start successful")
 	}
@@ -121,11 +121,11 @@ func start(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 func startoverride(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	ack(s, i.Interaction)
-	if !config.Config.EnableAutoShutdown {
-		respond(s, i.Interaction, "Auto shutdown is disabled for this container")
+	if !config.Config.EnableAutoStop {
+		respond(s, i.Interaction, "Auto stop is disabled for this container")
 		return
 	}
-	if !config.Config.EnableAutoShutdownOverride {
+	if !config.Config.EnableAutoStopOverride {
 		respond(s, i.Interaction, "Timer override is disabled for this container")
 		return
 	}
@@ -134,7 +134,7 @@ func startoverride(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	timerDuration := time.Duration(0)
 	for _, v := range data.Options {
 		switch v.Name {
-		case optionShutdownTimerOverride:
+		case optionStopTimerOverride:
 			overrideDurationRaw = v.StringValue()
 			if overrideDurationRaw != "off" {
 				var err error
@@ -157,12 +157,12 @@ func startoverride(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if timerDuration == 0 {
 		respond(s, i.Interaction, "Timer disabled by override\nContainer start successful")
 	} else {
-		go autoShutdown(s, timerDuration)
-		respond(s, i.Interaction, fmt.Sprintf("Container start successful\nShutdown timer set: <t:%v:R>", time.Now().Add(timerDuration).Unix()))
+		go autoStop(s, timerDuration)
+		respond(s, i.Interaction, fmt.Sprintf("Container start successful\nStop timer set: <t:%v:R>", time.Now().Add(timerDuration).Unix()))
 	}
 }
 
-func autoShutdown(s *discordgo.Session, duration time.Duration) {
+func autoStop(s *discordgo.Session, duration time.Duration) {
 	startState, err := docker.GetStartedAtInternal()
 	if err != nil {
 		log.Panicf("Error while getting container state before sleep: %v", err)

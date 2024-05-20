@@ -9,18 +9,18 @@ import (
 )
 
 type ConfigStruct struct {
-	Token                          string        `yaml:"token"`
-	AppId                          string        `yaml:"appid"`
-	Guild                          string        `yaml:"guild"`
-	Channel                        string        `yaml:"channel"`
-	Container                      string        `yaml:"container"`
-	MaxTail                        int64         `yaml:"max_tail"`
-	Timeout                        int           `yaml:"timeout"`
-	EnableStop                     bool          `yaml:"enable_stop"`
-	EnableAutoShutdown             bool          `yaml:"enable_auto_shutdown"`
-	DefaultAutoShutdownDuration    time.Duration `yaml:"-"`
-	DefaultAutoShutdownDurationRaw string        `yaml:"default_auto_shutdown_duration"`
-	EnableAutoShutdownOverride     bool          `yaml:"enable_auto_shutdown_override"`
+	Token                      string        `yaml:"token"`
+	AppId                      string        `yaml:"appid"`
+	Guild                      string        `yaml:"guild"`
+	Channel                    string        `yaml:"channel"`
+	Container                  string        `yaml:"container"`
+	MaxTail                    int64         `yaml:"max_tail"`
+	Timeout                    int           `yaml:"timeout"`
+	EnableStop                 bool          `yaml:"enable_stop"`
+	EnableAutoStop             bool          `yaml:"enable_auto_stop"`
+	DefaultAutoStopDuration    time.Duration `yaml:"-"`
+	DefaultAutoStopDurationRaw string        `yaml:"default_auto_stop_duration"`
+	EnableAutoStopOverride     bool          `yaml:"enable_auto_stop_override"`
 }
 
 var Config ConfigStruct
@@ -36,10 +36,10 @@ func LoadConfig() {
 	if err != nil {
 		log.Fatal("Failed to unmarshal config: ", err)
 	}
-	if Config.DefaultAutoShutdownDurationRaw != "off" {
-		Config.DefaultAutoShutdownDuration, err = time.ParseDuration(Config.DefaultAutoShutdownDurationRaw)
+	if Config.DefaultAutoStopDurationRaw != "off" {
+		Config.DefaultAutoStopDuration, err = time.ParseDuration(Config.DefaultAutoStopDurationRaw)
 		if err != nil {
-			log.Fatal("Failed to parse duration of auto_shutdown_duration: ", err)
+			log.Fatal("Failed to parse duration of auto_stop_duration: ", err)
 		}
 	}
 
