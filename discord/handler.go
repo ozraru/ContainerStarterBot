@@ -13,19 +13,24 @@ var zero float64 = 0
 
 var optionTimestamps = "timestamps"
 var optionTail = "tail"
-var optionShutdownTimerOverride = "timeroverride"
+var optionShutdownTimerOverride = "timerduration"
 
 func RegisterCommand() {
 	addCommand(&discordgo.ApplicationCommand{
 		GuildID:     config.Config.Guild,
 		Name:        "start",
 		Description: "Start container related to this channel",
+	})
+	addCommand(&discordgo.ApplicationCommand{
+		GuildID:     config.Config.Guild,
+		Name:        "startoverride",
+		Description: "Start container related to this channel, overrides shutdown timer",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        optionShutdownTimerOverride,
-				Description: "Override shutdown timer. Suffixes: h, m, s. Put \"off\" to disable timer for this activation.",
-				Required:    false,
+				Description: "Shutdown timer duration. Suffixes: h, m, s. Put \"off\" to disable timer for this activation.",
+				Required:    true,
 			},
 		},
 	})
@@ -82,6 +87,8 @@ func SlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.ApplicationCommandData().Name {
 		case "start":
 			start(s, i)
+		case "startoverride":
+			startoverride(s, i)
 		case "log":
 			getLog(s, i)
 		case "status":
@@ -98,55 +105,83 @@ func SlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 func start(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	ack(s, i.Interaction)
-	data := i.ApplicationCommandData()
 	err := docker.StartContainer()
-	shutdownTimer := ""
 	if err != nil {
 		respond(s, i.Interaction, "Failed to start container: "+err.Error())
 		return
 	}
-	if data.Options != nil || config.Config.EnableAutoShutdown {
-		for _, v := range data.Options {
-			switch v.Name {
-			case optionShutdownTimerOverride:
-				shutdownTimer = v.StringValue()
-			default:
-				respond(s, i.Interaction, "Unknown options specified")
-				return
-			}
-		}
-		go setShutdownTimer(s, shutdownTimer)
+	if config.Config.EnableAutoShutdown && config.Config.DefaultAutoShutdownDuration != 0 {
+		go autoShutdown(s, config.Config.DefaultAutoShutdownDuration)
+		respond(s, i.Interaction, "Container start successful\nShutdown timer set: ")
+	} else {
+		respond(s, i.Interaction, "Container start successful")
 	}
-	respond(s, i.Interaction, "Container start successful")
 }
 
-func setShutdownTimer(s *discordgo.Session, shutdownTimer string) {
-	if shutdownTimer == "" {
-		shutdownTimer = config.Config.AutoShutdownDuration
-	}
-	if shutdownTimer == "off" {
-		sendMessage(s, "Timer disabled by override")
+func startoverride(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	ack(s, i.Interaction)
+	if !config.Config.EnableAutoShutdown {
+		respond(s, i.Interaction, "Auto shutdown is disabled for this container")
 		return
 	}
-	timerDuration, err := time.ParseDuration(shutdownTimer)
+	if !config.Config.EnableAutoShutdownOverride {
+		respond(s, i.Interaction, "Timer override is disabled for this container")
+		return
+	}
+	data := i.ApplicationCommandData()
+	overrideDurationRaw := ""
+	timerDuration := time.Duration(0)
+	for _, v := range data.Options {
+		switch v.Name {
+		case optionShutdownTimerOverride:
+			overrideDurationRaw = v.StringValue()
+			if overrideDurationRaw != "off" {
+				var err error
+				timerDuration, err = time.ParseDuration(overrideDurationRaw)
+				if err != nil {
+					respond(s, i.Interaction, "**Override timer duration was invalid**")
+					return
+				}
+			}
+		default:
+			respond(s, i.Interaction, "Unknown options specified")
+			return
+		}
+	}
+	err := docker.StartContainer()
 	if err != nil {
-		sendMessage(s, "**Timer is not set; timer duration was invalid, check the input or the config file**")
+		respond(s, i.Interaction, "Failed to start container: "+err.Error())
 		return
 	}
-	go autoShutdown(s, timerDuration)
-	sendMessage(s, "Shutdown timer set: "+shutdownTimer)
-
+	if timerDuration == 0 {
+		respond(s, i.Interaction, "Timer disabled by override\nContainer start successful")
+	} else {
+		go autoShutdown(s, timerDuration)
+		respond(s, i.Interaction, "Container start successful\nShutdown timer set: ")
+	}
 }
 
 func autoShutdown(s *discordgo.Session, duration time.Duration) {
+	startState, err := docker.GetStartedAtInternal()
+	if err != nil {
+		log.Panicf("Error while getting container state before sleep: %v", err)
+	}
+	if startState == "" {
+		return
+	}
 	time.Sleep(duration)
-	err := docker.StopContainer()
-
+	endState, err := docker.GetStartedAtInternal()
+	if err != nil {
+		log.Panicf("Error while getting container state after sleep: %v", err)
+	}
+	if startState != endState {
+		return
+	}
+	err = docker.StopContainer()
 	if err != nil {
 		sendMessage(s, "Failed to stop container: "+err.Error())
 		return
 	}
-
 	sendMessage(s, "Container stop successful")
 }
 
