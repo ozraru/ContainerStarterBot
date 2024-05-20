@@ -13,7 +13,7 @@ var zero float64 = 0
 
 var optionTimestamps = "timestamps"
 var optionTail = "tail"
-var optionShutdownTimerOverride = "TimerOverride"
+var optionShutdownTimerOverride = "timeroverride"
 
 func RegisterCommand() {
 	addCommand(&discordgo.ApplicationCommand{
