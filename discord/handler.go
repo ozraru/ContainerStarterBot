@@ -1,7 +1,9 @@
 package discord
 
 import (
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/ozraru/ContainerStarterBot/config"
@@ -12,12 +14,26 @@ var zero float64 = 0
 
 var optionTimestamps = "timestamps"
 var optionTail = "tail"
+var optionStopTimerOverride = "timerduration"
 
 func RegisterCommand() {
 	addCommand(&discordgo.ApplicationCommand{
 		GuildID:     config.Config.Guild,
 		Name:        "start",
 		Description: "Start container related to this channel",
+	})
+	addCommand(&discordgo.ApplicationCommand{
+		GuildID:     config.Config.Guild,
+		Name:        "startoverride",
+		Description: "Start container related to this channel, overrides stop timer",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        optionStopTimerOverride,
+				Description: "Stop timer duration. Suffixes: h, m, s. Put \"off\" to disable timer for this activation.",
+				Required:    true,
+			},
+		},
 	})
 	addCommand(&discordgo.ApplicationCommand{
 		GuildID:     config.Config.Guild,
@@ -72,6 +88,8 @@ func SlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.ApplicationCommandData().Name {
 		case "start":
 			start(s, i)
+		case "startoverride":
+			startoverride(s, i)
 		case "log":
 			getLog(s, i)
 		case "status":
@@ -88,15 +106,84 @@ func SlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 func start(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	ack(s, i.Interaction)
-
 	err := docker.StartContainer()
-
 	if err != nil {
 		respond(s, i.Interaction, "Failed to start container: "+err.Error())
 		return
 	}
+	if config.Config.EnableAutoStop && config.Config.DefaultAutoStopDuration != 0 {
+		go autoStop(s, config.Config.DefaultAutoStopDuration)
+		respond(s, i.Interaction, fmt.Sprintf("Container start successful\nStop timer set: <t:%v:R>", time.Now().Add(config.Config.DefaultAutoStopDuration).Unix()))
+	} else {
+		respond(s, i.Interaction, "Container start successful")
+	}
+}
 
-	respond(s, i.Interaction, "Container start successful")
+func startoverride(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	ack(s, i.Interaction)
+	if !config.Config.EnableAutoStop {
+		respond(s, i.Interaction, "Auto stop is disabled for this container")
+		return
+	}
+	if !config.Config.EnableAutoStopOverride {
+		respond(s, i.Interaction, "Timer override is disabled for this container")
+		return
+	}
+	data := i.ApplicationCommandData()
+	overrideDurationRaw := ""
+	timerDuration := time.Duration(0)
+	for _, v := range data.Options {
+		switch v.Name {
+		case optionStopTimerOverride:
+			overrideDurationRaw = v.StringValue()
+			if overrideDurationRaw != "off" {
+				var err error
+				timerDuration, err = time.ParseDuration(overrideDurationRaw)
+				if err != nil {
+					respond(s, i.Interaction, "Override timer duration was invalid")
+					return
+				}
+			}
+		default:
+			respond(s, i.Interaction, "Unknown options specified")
+			return
+		}
+	}
+	err := docker.StartContainer()
+	if err != nil {
+		respond(s, i.Interaction, "Failed to start container: "+err.Error())
+		return
+	}
+	if timerDuration == 0 {
+		respond(s, i.Interaction, "Timer disabled by override\nContainer start successful")
+	} else {
+		go autoStop(s, timerDuration)
+		respond(s, i.Interaction, fmt.Sprintf("Container start successful\nStop timer set: <t:%v:R>", time.Now().Add(timerDuration).Unix()))
+	}
+}
+
+func autoStop(s *discordgo.Session, duration time.Duration) {
+	startState, err := docker.GetStartedAtInternal()
+	if err != nil {
+		log.Panicf("Error while getting container state before sleep: %v", err)
+	}
+	if startState == "" {
+		return
+	}
+	time.Sleep(duration)
+	endState, err := docker.GetStartedAtInternal()
+	if err != nil {
+		log.Panicf("Error while getting container state after sleep: %v", err)
+	}
+	if startState != endState {
+		return
+	}
+	err = docker.StopContainer()
+	if err != nil {
+		sendMessage(s, "Failed to stop container: "+err.Error())
+		return
+	}
+	sendMessage(s, "Container stop successful")
 }
 
 func getLog(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -184,5 +271,12 @@ func respond(s *discordgo.Session, i *discordgo.Interaction, msg string) {
 	})
 	if err != nil {
 		log.Print("Failed to interaction respond: ", err)
+	}
+}
+
+func sendMessage(s *discordgo.Session, msg string) {
+	_, err := s.ChannelMessageSend(config.Config.Channel, msg)
+	if err != nil {
+		log.Print("Failed to send message: ", err)
 	}
 }

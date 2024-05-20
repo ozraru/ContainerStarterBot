@@ -70,6 +70,17 @@ func ContainerStatus() (string, error) {
 	return res, nil
 }
 
+func GetStartedAtInternal() (string, error) {
+	data, err := apicli.ContainerInspect(context.Background(), config.Config.Container)
+	if err != nil {
+		return "", err
+	}
+	if data.State.Running {
+		return data.State.StartedAt, nil
+	}
+	return "", nil
+}
+
 func convertTime(before string) string {
 	t, err := time.Parse(time.RFC3339Nano, before)
 	if err != nil {
