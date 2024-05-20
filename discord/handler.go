@@ -140,7 +140,7 @@ func startoverride(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				var err error
 				timerDuration, err = time.ParseDuration(overrideDurationRaw)
 				if err != nil {
-					respond(s, i.Interaction, "**Override timer duration was invalid**")
+					respond(s, i.Interaction, "Override timer duration was invalid")
 					return
 				}
 			}
