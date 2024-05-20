@@ -130,7 +130,7 @@ func setShutdownTimer(s *discordgo.Session, shutdownTimer string) {
 	}
 	timerDuration, err := time.ParseDuration(shutdownTimer)
 	if err != nil {
-		sendMessage(s, "**Timer is not set; timer duration was invalid, check the config file**")
+		sendMessage(s, "**Timer is not set; timer duration was invalid, check the input or the config file**")
 		return
 	}
 	go autoShutdown(s, timerDuration)
